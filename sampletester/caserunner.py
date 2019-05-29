@@ -243,27 +243,27 @@ class TestCase:
     return out
 
   # Expectation on the output of the last call.
-  def expect_contains(self, message, *values):
+  def expect_contains(self, message, *values, **kwargs):
     self._contain_check(
-        self.expect, lambda substr: self.last_output_contains(substr), message,
+        self.expect, lambda substr: self.last_output_contains(substr, **kwargs), message,
         values)
 
   # Requirement on the output of the last call.
-  def assert_contains(self, message, *values):
+  def assert_contains(self, message, *values, **kwargs):
     self._contain_check(
-        self.assert_that, lambda substr: self.last_output_contains(substr),
+        self.assert_that, lambda substr: self.last_output_contains(substr, **kwargs),
         message, values)
 
   # Negative expectation on the output of the last call.
-  def expect_not_contains(self, message, *values):
+  def expect_not_contains(self, message, *values, **kwargs):
     self._contain_check(
-        self.expect, lambda substr: not self.last_output_contains(substr),
+        self.expect, lambda substr: not self.last_output_contains(substr, **kwargs),
         message, values)
 
   # Negative assertion on the output of the last call.
-  def assert_not_contains(self, message, *values):
+  def assert_not_contains(self, message, *values, **kwargs):
     self._contain_check(
-        self.assert_that, lambda substr: not self.last_output_contains(substr),
+        self.assert_that, lambda substr: not self.last_output_contains(substr, **kwargs),
         message, values)
 
   # Assertion on the return value of the last call indicating success.
@@ -374,8 +374,11 @@ class TestCase:
 
   #### Helper methods
 
-  def last_output_contains(self, substr):
-    return substr in self.last_call_output
+  def last_output_contains(self, substr, **kwargs):
+    case_sensitive = kwargs.get('case_sensitive', False)
+    if case_sensitive:
+      return substr in self.last_call_output
+    return substr.lower() in self.last_call_output.lower()
 
   def format_string(self, msg, *args):
     """Formats `msg` formatted with `*args`.
@@ -410,14 +413,14 @@ class TestCase:
     return [parts[0]] + self.lookup_values(parts[1:]), {}
 
   def params_for_set(self, parts):
-    key_what = 'what'
-    key_variable = 'var'
+    key_name = 'name'
+    key_variable = 'variable'
     if len(parts) < 2:
       log_raise(
           logging.critical, ValueError,
           'need both "{}" and "{}"'
-          .format(key_what, key_variable))
-    return parts[key_variable], parts[key_what]
+          .format(key_name, key_variable))
+    return parts[key_variable], parts[key_name]
 
   def params_for_call(self, parts):
     key_cmd = self.environment.get_testcase_settings().get('call.target', 'target')
@@ -456,7 +459,9 @@ class TestCase:
     return [cmd] + args, params
 
   def params_for_contains(self, parts):
-    return self.string_and_params("message", parts), {}
+    # TODO: Allow case-sensitive matching as well, once we figure out the format
+    # in the YAML.
+    return self.string_and_params("message", parts), {'case_sensitive': False}
 
   def string_and_params(self, name: str, parts, *, strict: bool = False):
     if name in parts[0]:
